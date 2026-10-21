@@ -1,0 +1,6 @@
+{
+  "name": "Vance Editorial — Video Growth & Post-Production",
+  "description": "High-velocity, retention-engineered video editing, client testimonials, showreel portfolio, and project booking system for creators and premium brands.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

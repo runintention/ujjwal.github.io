@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CliniqueGrowth.ca | Ottawa's Clinical Growth Authority</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --accent: #10b981;
+            --accent-soft: rgba(16, 185, 129, 0.1);
+            --accent-glow: rgba(16, 185, 129, 0.2);
+            --bg-light: #f8fafc;
+            --text-main: #0f172a;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            overflow-x: hidden;
+            cursor: default; 
+        }
+
+        .heading-serif {
+            font-family: 'Playfair Display', serif;
+            letter-spacing: -0.02em;
+        }
+
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            background: #f8fafc;
+        }
+
+        @media (max-width: 1024px) {
+            body { cursor: auto; }
+            #cursor-glow { display: none; }
+        }
+
+        #cursor-glow {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 0;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+            mix-blend-mode: multiply;
+        }
+
+        .glass-light {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border-top: 2px solid rgba(255, 255, 255, 0.9); 
+            border-left: 2px solid rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+            border-right: 1px solid rgba(15, 23, 42, 0.1);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08),
+                        inset 0 0 15px rgba(255, 255, 255, 0.5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .method-number { font-weight: 950; }
+
+        .readable-desc {
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            line-height: 1.5;
+        }
+
+        .reflection-container {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, box-shadow;
+            border-radius: 2rem; 
+        }
+
+        .reflection-container::after {
+            content: "";
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            width: 200%;
+            height: 400%;
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(255, 255, 255, 0.0) 40%,
+                rgba(255, 255, 255, 0.5) 50%,
+                rgba(255, 255, 255, 0.0) 60%,
+                transparent
+            );
+            transform: translateX(-100%) rotate(30deg);
+            pointer-events: none;
+        }
+
+        .reflection-container:hover::after {
+            transform: translateX(100%) rotate(30deg);
+            transition: transform 0.6s ease-in-out;
+        }
+
+        .reflection-container:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px -15px rgba(16, 185, 129, 0.15);
+            background: rgba(255, 255, 255, 0.5);
+            z-index: 20;
+            border-top: 2.5px solid rgba(255, 255, 255, 1);
+            border-left: 2.5px solid rgba(255, 255, 255, 1);
+        }
+
+        .nav-link-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0.5rem 0.85rem;
+            border-radius: 0.85rem;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .nav-link-btn.nav-active {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: var(--accent);
+            font-weight: 900;
+        }
+
+        .nav-link-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: var(--accent);
+        }
+
+        .btn-pop:active { transform: scale(0.95); }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #064e3b 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.7s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .data-fill {
+            width: 0%;
+            transition: width 2s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .active .data-fill { width: var(--target-width); }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .team-img { filter: grayscale(100%); transition: filter 0.8s ease; }
+        .group:hover .team-img { filter: grayscale(0%); }
+        .team-image-container { transition: all 0.5s ease; }
+
+        .step-num {
+            color: #064e3b !important;
+            font-size: 2.75rem; 
+            line-height: 1;
+            letter-spacing: 0.02em;
+            font-weight: 950;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .scroll-control-btn {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+        }
+        .scroll-control-btn:hover {
+            background: white;
+            color: var(--accent);
+            transform: scale(1.1);
+        }
+
+        #planet-container-home {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .planet-wrapper {
+            position: absolute;
+            pointer-events: auto;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            will-change: left, top;
+        }
+
+        .planet-wrapper:active { cursor: grabbing; }
+
+        .planet-art {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            animation: float-bob 6s ease-in-out infinite;
+        }
+
+        .planet-wrapper:nth-child(odd) .planet-art { animation-duration: 7s; animation-delay: 1s; }
+        .planet-wrapper:nth-child(even) .planet-art { animation-duration: 8s; animation-delay: 0.5s; }
+
+        @keyframes float-bob {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+
+        nav, section { position: relative; z-index: 10; pointer-events: none; }
+        nav .flex, section .max-w-7xl, section .max-w-6xl, section .max-w-5xl, section .max-w-4xl, .scroll-control-btn { pointer-events: auto; }
+
+        #audit-modal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #audit-modal.hidden {
+            opacity: 0;
+            visibility: hidden;
+            display: flex !important;
+        }
+        
+        .cert-card-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-circle {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+        }
+
+        .privacy-copy h2 {
+            color: #064e3b;
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.35rem, 2.3vw, 2rem);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .privacy-copy h2:first-child { margin-top: 0; }
+        .privacy-copy p, .privacy-copy li {
+            color: #334155;
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1.8;
+        }
+        .privacy-copy ul { list-style: disc; padding-left: 1.35rem; margin: 0.8rem 0; }
+        .privacy-copy li { margin: 0.45rem 0; }
+        .privacy-policy-toggle { list-style: none; cursor: pointer; }
+        .privacy-policy-toggle::-webkit-details-marker { display: none; }
+        .privacy-policy-arrow { transition: transform 260ms ease; }
+        details[open] .privacy-policy-arrow { transform: rotate(180deg); }
+
+        @media (min-width: 1024px) {
+            .logo-circle {
+                width: 6rem;
+                height: 6rem;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-emerald-100 selection:text-emerald-900">
+
+    <!-- ======================= SHARED MODALS & LOADERS ======================= -->
+    <!-- Loader -->
+    <div id="loader">
+        <div class="flex flex-col items-center">
+            <!-- Loading Beaker Logo -->
+            <svg class="w-12 h-16 text-emerald-600 animate-pulse mb-2" viewBox="0 0 200 262" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="30" r="10" fill="currentColor"/>
+                <circle cx="132" cy="65" r="14" fill="currentColor"/>
+                <circle cx="98" cy="90" r="8" fill="currentColor"/>
+                <path d="M72 110H128" stroke="currentColor" stroke-width="12" stroke-linecap="round"/>
+                <path d="M84 110V165" stroke="currentColor" stroke-width="12"/>
+                <path d="M116 110V165" stroke="currentColor" stroke-width="12"/>
+                <path d="M84 165C66 173 54 190 54 210C54 235 74 256 100 256C126 256 146 235 146 210C146 190 134 173 116 165" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                <g clip-path="url(#loader-beaker-clip)">
+                    <path d="M40 205C65 190 85 222 120 198C135 188 160 215 160 215V270H40V205Z" fill="#000" />
+                </g>
+                <defs>
+                    <clipPath id="loader-beaker-clip">
+                        <circle cx="100" cy="210" r="41" />
+                    </clipPath>
+                </defs>
+            </svg>
+            <p class="mt-4 font-black tracking-widest text-emerald-900 uppercase text-[10px]">CliniqueGrowth.ca</p>
+        </div>
+    </div>
+
+    <!-- Audit Modal -->
+    <div id="audit-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-6 hidden">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onclick="closeAuditModal()"></div>
+        <div class="relative glass-light max-w-xl w-full p-8 lg:p-12 rounded-[2.5rem] text-center shadow-2xl border border-white/50 reveal active">
+            <button onclick="closeAuditModal()" class="absolute top-6 right-6 w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white hover:bg-emerald-500 transition-all shadow-xl z-50">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200">
+                <i data-lucide="mail" class="text-white w-7 h-7 stroke-[2.5]"></i>
+            </div>
+            <h2 class="text-2xl lg:text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2 heading-serif">Choose Your Entry</h2>
+            <p class="text-slate-600 font-bold mb-8 text-sm">Select your preferred platform to contact us.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="redirectToEmail('gmail', 'web')" class="flex flex-col items-center gap-3 p-5 glass-light rounded-2xl border-2 border-transparent hover:border-emerald-500 hover:bg-white transition-all group">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" class="w-10 h-10" alt="Gmail">
+                    <span class="font-black text-slate-900 uppercase text-[9px] tracking-widest">Gmail (Web)</span>
+                </button>
+                <button onclick="redirectToEmail('outlook', 'web')" class="flex flex-col items-center gap-3 p-5 glass-light rounded-2xl border-2 border-transparent hover:border-emerald-500 hover:bg-white transition-all group">
+                    <img src="https://i.imgur.com/TmYohgZ.png" class="w-10 h-10" alt="Outlook">
+                    <span class="font-black text-slate-900 uppercase text-[9px] tracking-widest">Outlook (Web)</span>
+                </button>
+                <button onclick="redirectToEmail('gmail', 'app')" class="flex flex-col items-center gap-3 p-5 glass-light rounded-2xl border-2 border-transparent hover:border-emerald-500 hover:bg-white transition-all group">
+                    <div class="relative">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" class="w-10 h-10 opacity-60" alt="Gmail App">
+                        <i data-lucide="smartphone" class="absolute inset-0 m-auto w-5 h-5 text-slate-900"></i>
+                    </div>
+                    <span class="font-black text-slate-900 uppercase text-[9px] tracking-widest">Gmail (App)</span>
+                </button>
+                <button onclick="redirectToEmail('outlook', 'app')" class="flex flex-col items-center gap-3 p-5 glass-light rounded-2xl border-2 border-transparent hover:border-emerald-500 hover:bg-white transition-all group">
+                    <div class="relative">
+                        <img src="https://i.imgur.com/TmYohgZ.png" class="w-10 h-10 opacity-60" alt="Outlook App">
+                        <i data-lucide="smartphone" class="absolute inset-0 m-auto w-5 h-5 text-slate-900"></i>
+                    </div>
+                    <span class="font-black text-slate-900 uppercase text-[9px] tracking-widest">Outlook (App)</span>
+                </button>
+            </div>
+            <p class="mt-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950">Response time: &lt; 24 Hours</p>
+        </div>
+    </div>
+
+    <!-- Background Components -->
+    <canvas id="particle-canvas"></canvas>
+    <div id="cursor-glow"></div>
+
+    <!-- Dynamic Planets -->
+    <div id="planet-container-home">
+        <div class="planet-wrapper" style="width: 140px; top: 15%; left: 5%;">
+            <img src="https://framerusercontent.com/images/eReia3yfybtZ8P5576d6kF8NJIM.png" class="planet-art" alt="Mars">
+        </div>
+        <div class="planet-wrapper" style="width: 180px; top: 25%; right: 5%;">
+            <img src="https://framerusercontent.com/images/FOIQJjlpuUktsmNqzA3QoB8f2oU.png" class="planet-art" alt="Saturn">
+        </div>
+        <div class="planet-wrapper" style="width: 160px; bottom: 20%; left: 8%;">
+            <img src="https://framerusercontent.com/images/3cNnbBNWbjHl4OiEl7rG5h7xczY.png" class="planet-art" alt="Jupiter">
+        </div>
+        <div class="planet-wrapper" style="width: 100px; bottom: 10%; right: 12%;">
+            <img src="https://framerusercontent.com/images/K3uC2Tk4o2zjSbuWGs3t0MMuLVY.png" class="planet-art" alt="Earth">
+        </div>
+    </div>
+
+    <!-- ======================= NAVIGATION & HERO ======================= -->
+    <!-- Navigation Header -->
+    <nav class="fixed top-0 w-full z-50 glass-light py-3 lg:py-4 px-4 sm:px-8 lg:px-16 flex flex-col md:flex-row justify-between items-center shadow-md gap-5 md:gap-0">
+        <div class="flex justify-between items-center w-full md:w-auto pointer-events-auto">
+            <a href="#" class="text-base sm:text-lg lg:text-2xl font-black tracking-tighter flex items-end gap-1 pb-1">
+                <!-- Premium Custom Beaker/Boiling Flask Logo -->
+                <svg class="w-6 h-8 lg:w-7 lg:h-9 text-slate-900 block" viewBox="0 0 200 262" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Floating Bubbles -->
+                    <circle cx="100" cy="30" r="10" fill="currentColor"/>
+                    <circle cx="132" cy="65" r="14" fill="currentColor"/>
+                    <circle cx="98" cy="90" r="8" fill="currentColor"/>
+                    <!-- Beaker Frame -->
+                    <path d="M72 110H128" stroke="currentColor" stroke-width="12" stroke-linecap="round"/>
+                    <path d="M84 110V165" stroke="currentColor" stroke-width="12"/>
+                    <path d="M116 110V165" stroke="currentColor" stroke-width="12"/>
+                    <!-- Flask Body Circle Outline -->
+                    <path d="M84 165C66 173 54 190 54 210C54 235 74 256 100 256C126 256 146 235 146 210C146 190 134 173 116 165" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Wave Level Black Liquid (Clipped to Flask Base) -->
+                    <g clip-path="url(#nav-beaker-clip)">
+                        <path d="M40 205C65 190 85 222 120 198C135 188 160 215 160 215V270H40V205Z" fill="#000000" />
+                    </g>
+                    <defs>
+                        <clipPath id="nav-beaker-clip">
+                            <circle cx="100" cy="210" r="41" />
+                        </clipPath>
+                    </defs>
+                </svg>
+                <span class="font-black text-slate-900 uppercase leading-none select-none">Clinique<span class="text-emerald-500">Growth.ca</span></span>
+            </a>
+            <button onclick="openAuditModal()" class="md:hidden bg-emerald-500 text-white px-4 py-2 rounded-full text-[10px] font-black hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 btn-pop">AUDIT</button>
+        </div>
+        <div class="flex space-x-2 sm:space-x-4 lg:space-x-6 text-[10px] lg:text-[12px] font-bold uppercase tracking-widest text-slate-600 items-center overflow-x-auto no-scrollbar w-full md:w-auto justify-center pointer-events-auto">
+            <a href="#services" class="nav-link-btn" data-section="services">Services</a>
+            <a href="#process" class="nav-link-btn" data-section="process">The Method</a>
+            <a href="#specialties" class="nav-link-btn" data-section="specialties">Specialties</a>
+            <a href="#team" class="nav-link-btn" data-section="team">The Team</a>
+        </div>
+        <div class="hidden md:flex items-center gap-2 lg:gap-4 pointer-events-auto scale-90 lg:scale-100 origin-right">
+            <button onclick="document.getElementById('specialties').scrollIntoView({ behavior: 'smooth' })" class="hidden lg:block bg-black text-white px-6 lg:px-8 py-2.5 lg:py-3 rounded-full text-[10px] lg:text-xs font-black hover:bg-slate-800 shadow-lg btn-pop transition-transform">OUR SPECIALTIES</button>
+            <button onclick="openAuditModal()" class="bg-emerald-500 text-white px-6 lg:px-8 py-2.5 lg:py-3 rounded-full text-[10px] lg:text-xs font-black hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 btn-pop transition-transform">BOOK AUDIT</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="min-h-[80vh] lg:min-h-screen flex flex-col justify-center items-center text-center px-6 pt-40 lg:pt-44 relative overflow-hidden">
+        <div class="z-10 max-w-5xl pointer-events-auto">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full mb-8 lg:mb-10 reveal shadow-sm">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span class="text-[8px] sm:text-[10px] font-extrabold tracking-widest text-emerald-700 uppercase">Ottawa's Premiere Growth Partner</span>
+            </div>
+            <h1 class="text-4xl sm:text-6xl md:text-6xl lg:text-8xl md:px-12 lg:px-0 font-black mb-8 leading-[1.1] text-slate-900 reveal tracking-tighter">
+                We Engineer <span class="text-gradient">Viral Growth</span> Through Data.
+            </h1>
+            <div class="glass-light p-6 lg:p-8 rounded-[2rem] max-w-3xl md:max-w-lg lg:max-w-3xl mx-auto mb-10 lg:mb-12 reveal" style="transition-delay: 200ms">
+                <p class="text-black text-base lg:text-xl leading-relaxed font-black readable-desc">
+                    CliniqueGrowth.ca is a dedicated patient acquisition partner. We build reliable digital systems for premium clinics that want predictable patient flow, not creative theories.
+                </p>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 sm:gap-6 justify-center items-center reveal" style="transition-delay: 400ms">
+                <button onclick="openAuditModal()" class="bg-emerald-600 text-white px-8 lg:px-12 py-4 lg:py-5 rounded-2xl font-black text-base lg:text-lg hover:bg-emerald-700 transition-all transform hover:scale-105 duration-300 btn-pop shadow-xl flex items-center justify-center w-full md:w-auto lg:w-auto md:px-8">Scale My Brand</button>
+                <button onclick="document.getElementById('specialties').scrollIntoView({ behavior: 'smooth' })" class="bg-black text-white px-8 lg:px-12 py-4 lg:py-5 rounded-2xl font-black text-base lg:text-lg transition-all transform hover:scale-105 duration-300 btn-pop shadow-xl flex items-center justify-center cursor-pointer w-full md:w-auto lg:w-auto md:px-8">Our Specialties</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= SERVICES ======================= -->
+    <!-- Services Section -->
+    <section id="services" class="mt-10 lg:mt-16 pt-20 pb-10 lg:py-16 px-6 md:px-16 lg:px-16 bg-transparent anchor-section">
+        <div class="max-w-7xl mx-auto pointer-events-auto">
+            <div class="grid md:grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+                <div class="reveal mb-6 lg:mb-0 relative z-30">
+                    <h2 class="text-4xl sm:text-5xl md:text-5xl lg:text-5xl font-black leading-[0.9] mb-6 text-slate-900 tracking-tighter uppercase md:max-w-lg lg:max-w-none">Our Core <br><span class="text-emerald-500">Marketing</span> <br>Systems</h2>
+                    <p class="text-slate-900 mb-6 lg:mb-8 text-sm lg:text-base font-bold">Disciplined systems for high velocity growth.</p>
+                    <div class="reflection-container glass-light p-8 md:max-w-md lg:max-w-none">
+                        <div class="text-emerald-700 font-black mb-2 text-base sm:text-lg">98% Retention Rate</div>
+                        <p class="text-slate-900 text-xs sm:text-sm font-bold leading-relaxed">Predictable, month over month results.</p>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 grid grid-cols-2 gap-4 lg:gap-6 relative z-10">
+                    <div class="reflection-container glass-light p-4 lg:p-8 reveal" style="transition-delay: 100ms">
+                        <div class="w-10 h-10 lg:w-14 lg:h-14 bg-emerald-500 rounded-xl lg:rounded-2xl flex items-center justify-center mb-3 lg:mb-6 shadow-lg shadow-emerald-200">
+                            <i data-lucide="trending-up" class="text-white w-5 h-5 lg:w-7 lg:h-7 stroke-[2.5]"></i>
+                        </div>
+                        <h3 class="text-sm lg:text-xl font-black mb-1 lg:mb-2 text-slate-900 uppercase tracking-tight">Paid Ads</h3>
+                        <p class="text-slate-900 text-[10px] lg:text-sm leading-relaxed font-bold">Aggressive ROAS focused strategies.</p>
+                    </div>
+                    <div class="reflection-container glass-light p-4 lg:p-8 reveal" style="transition-delay: 200ms">
+                        <div class="w-10 h-10 lg:w-14 lg:h-14 bg-emerald-500 rounded-xl lg:rounded-2xl flex items-center justify-center mb-3 lg:mb-6 shadow-lg shadow-emerald-200">
+                            <i data-lucide="rocket" class="text-white w-5 h-5 lg:w-7 lg:h-7 stroke-[2.5]"></i>
+                        </div>
+                        <h3 class="text-sm lg:text-xl font-black mb-1 lg:mb-2 text-slate-900 uppercase tracking-tight">Strategy</h3>
+                        <p class="text-slate-900 text-[10px] lg:text-sm leading-relaxed font-bold">Data systems built to scale profitably.</p>
+                    </div>
+                    <div class="reflection-container glass-light p-4 lg:p-8 reveal" style="transition-delay: 300ms">
+                        <div class="w-10 h-10 lg:w-14 lg:h-14 bg-emerald-500 rounded-xl lg:rounded-2xl flex items-center justify-center mb-3 lg:mb-6 shadow-lg shadow-emerald-200">
+                            <i data-lucide="filter" class="text-white w-5 h-5 lg:w-7 lg:h-7 stroke-[2.5]"></i>
+                        </div>
+                        <h3 class="text-sm lg:text-xl font-black mb-1 lg:mb-2 text-slate-900 uppercase tracking-tight">Funnels</h3>
+                        <p class="text-slate-900 text-[10px] lg:text-sm leading-relaxed font-bold">Consistent lead & sales setup.</p>
+                    </div>
+                    <div class="reflection-container glass-light p-4 lg:p-8 reveal" style="transition-delay: 400ms">
+                        <div class="w-10 h-10 lg:w-14 lg:h-14 bg-emerald-500 rounded-xl lg:rounded-2xl flex items-center justify-center mb-3 lg:mb-6 shadow-lg shadow-emerald-200">
+                            <i data-lucide="share-2" class="text-white w-5 h-5 lg:w-7 lg:h-7 stroke-[2.5]"></i>
+                        </div>
+                        <h3 class="text-sm lg:text-xl font-black mb-1 lg:mb-2 text-slate-900 uppercase tracking-tight">Social</h3>
+                        <p class="text-slate-900 text-[10px] lg:text-sm leading-relaxed font-bold">Communities engineered to buy.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process Section -->
+    <section id="process" class="pt-10 pb-10 lg:py-16 px-6 md:px-16 lg:px-16 bg-transparent anchor-section">
+        <div class="max-w-7xl mx-auto pointer-events-auto">
+            <div class="text-center mb-12 lg:mb-20 reveal">
+                <h2 class="text-3xl lg:text-5xl font-black mb-4 text-slate-900 tracking-tighter uppercase heading-serif">Our Methodology</h2>
+                <p class="text-slate-900 font-extrabold text-sm lg:text-base uppercase tracking-tighter">The Blueprint for Authority.</p>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-4">
+                <div class="reflection-container method-card group p-6 sm:p-8 glass-light reveal">
+                    <div class="mb-4 step-num method-number">01</div>
+                    <h4 class="font-extrabold text-base sm:text-lg mb-2 uppercase text-slate-900 heading-serif">Audit</h4>
+                    <p class="text-[10px] sm:text-sm text-emerald-700 leading-relaxed font-bold">We analyze assets to identify hidden bottlenecks. Plugging leaks ensures every marketing dollar is optimized for ROI.</p>
+                </div>
+                <div class="reflection-container method-card group p-6 sm:p-8 glass-light reveal" style="transition-delay: 100ms">
+                    <div class="mb-4 step-num method-number">02</div>
+                    <h4 class="font-extrabold text-base sm:text-lg mb-2 uppercase text-slate-900 heading-serif">Strategize</h4>
+                    <p class="text-[10px] sm:text-sm text-emerald-700 leading-relaxed font-bold">We build a custom 90 day roadmap tailored to your goals. This blueprint serves as our tactical guide to outmaneuvering.</p>
+                </div>
+                <div class="reflection-container method-card group p-6 sm:p-8 glass-light reveal" style="transition-delay: 200ms">
+                    <div class="mb-4 step-num method-number">03</div>
+                    <h4 class="font-extrabold text-base sm:text-lg mb-2 uppercase text-slate-900 heading-serif">Execute</h4>
+                    <p class="text-[10px] sm:text-sm text-emerald-700 leading-relaxed font-bold">We deploy high performance assets and targeted campaigns. Our focus is aggressive testing and real time tweaks.</p>
+                </div>
+                <div class="reflection-container method-card group p-6 sm:p-8 glass-light reveal" style="transition-delay: 300ms">
+                    <div class="mb-4 step-num method-number">04</div>
+                    <h4 class="font-extrabold text-base sm:text-lg mb-2 uppercase text-slate-900 heading-serif">Scale</h4>
+                    <p class="text-[10px] sm:text-sm text-emerald-700 leading-relaxed font-bold">We double down on highest ROI opportunities to dominate. We manage growth while protecting your absolute bottom line.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Brands Trust Section -->
+    <section class="py-12 lg:py-24 px-6 overflow-hidden">
+        <div class="max-w-7xl mx-auto pointer-events-auto text-center flex flex-col items-center">
+            <div class="inline-flex bg-white px-8 py-3 rounded-full mb-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] reveal active">
+                <i data-lucide="badge-check" class="w-5 h-5 text-black mr-2"></i>
+                <span class="text-[11px] lg:text-sm font-black tracking-[0.3em] uppercase text-black">Certified from industry leaders</span>
+            </div>
+            <div class="reflection-container glass-light p-6 lg:p-10 rounded-[2.5rem] mb-16 max-w-fit md:px-16 w-full md:w-auto border-2 border-white reveal active mx-auto">
+                <h2 class="text-3xl lg:text-6xl font-black text-slate-900 uppercase tracking-tighter heading-serif leading-none">Trusted by Top Brands</h2>
+            </div>
+            <div class="flex flex-wrap justify-center items-center gap-4 md:gap-6 lg:gap-10 w-full md:max-w-2xl lg:max-w-full mx-auto">
+                <div class="reflection-container glass-light flex flex-col items-center justify-center text-center p-3 sm:p-4 lg:p-6 w-[140px] md:w-[130px] lg:w-full lg:max-w-[160px] aspect-square lg:aspect-auto rounded-full lg:rounded-[2rem] border-2 border-white/60 shadow-xl reveal">
+                    <img src="https://i.imgur.com/4MLLT7M.png" class="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 lg:mb-3" alt="Google">
+                    <h4 class="text-[9px] lg:text-sm font-black text-slate-900 uppercase mb-0.5 lg:mb-1">Google AdSense</h4>
+                    <p class="text-[5px] lg:text-[10px] font-black text-emerald-600 leading-tight uppercase tracking-wider px-1">Precision search intent logic to capture market share.</p>
+                </div>
+                <div class="reflection-container glass-light flex flex-col items-center justify-center text-center p-3 sm:p-4 lg:p-6 w-[140px] md:w-[130px] lg:w-full lg:max-w-[160px] aspect-square lg:aspect-auto rounded-full lg:rounded-[2rem] border-2 border-white/60 shadow-xl reveal" style="transition-delay: 100ms">
+                    <img src="https://cdn.simpleicons.org/meta/0668E1" class="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 lg:mb-3" alt="Meta">
+                    <h4 class="text-[9px] lg:text-sm font-black text-slate-900 uppercase mb-0.5 lg:mb-1">Meta CRM</h4>
+                    <p class="text-[5px] lg:text-[10px] font-black text-emerald-600 leading-tight uppercase tracking-wider px-1">Advanced Pixel intelligence to scale social resonance.</p>
+                </div>
+                <div class="reflection-container glass-light flex flex-col items-center justify-center text-center p-3 sm:p-4 lg:p-6 w-[140px] md:w-[130px] lg:w-full lg:max-w-[160px] aspect-square lg:aspect-auto rounded-full lg:rounded-[2rem] border-2 border-white/60 shadow-xl reveal" style="transition-delay: 200ms">
+                    <img src="https://cdn.simpleicons.org/semrush/FF642E" class="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 lg:mb-3" alt="Semrush">
+                    <h4 class="text-[9px] lg:text-sm font-black text-slate-900 uppercase mb-0.5 lg:mb-1">SEMrush CRM</h4>
+                    <p class="text-[5px] lg:text-[10px] font-black text-emerald-600 leading-tight uppercase tracking-wider px-1">Tactical audits identifying market vulnerabilities.</p>
+                </div>
+                <div class="reflection-container glass-light flex flex-col items-center justify-center text-center p-3 sm:p-4 lg:p-6 w-[140px] md:w-[130px] lg:w-full lg:max-w-[160px] aspect-square lg:aspect-auto rounded-full lg:rounded-[2rem] border-2 border-white/60 shadow-xl reveal" style="transition-delay: 300ms">
+                    <img src="https://cdn.simpleicons.org/tiktok/000000" class="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 lg:mb-3" alt="TikTok">
+                    <h4 class="text-[9px] lg:text-sm font-black text-slate-900 uppercase mb-0.5 lg:mb-1">TikTok Ads</h4>
+                    <p class="text-[5px] lg:text-[10px] font-black text-emerald-600 leading-tight uppercase tracking-wider px-1">Psychological triggers designed to command attention.</p>
+                </div>
+                <div class="reflection-container glass-light hidden md:flex flex-col items-center justify-center text-center p-3 sm:p-4 lg:p-6 w-[140px] md:w-[130px] lg:w-full lg:max-w-[160px] aspect-square lg:aspect-auto rounded-full lg:rounded-[2rem] border-2 border-white/60 shadow-xl reveal" style="transition-delay: 400ms">
+                    <img src="https://cdn.simpleicons.org/hubspot/FF7A59" class="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 lg:mb-3" alt="HubSpot">
+                    <h4 class="text-[9px] lg:text-sm font-black text-slate-900 uppercase mb-0.5 lg:mb-1">HubSpot CRM</h4>
+                    <p class="text-[5px] lg:text-[10px] font-black text-emerald-600 leading-tight uppercase tracking-wider px-1">Complex automations built to maximize lead efficiency.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= SPECIALTIES ======================= -->
+    <!-- Specialties Section -->
+    <section id="specialties" class="pt-12 pb-6 lg:pt-16 lg:pb-8 px-6 sm:px-10 lg:px-16 md:px-12 bg-transparent anchor-section">
+        <div class="max-w-6xl md:max-w-4xl lg:max-w-6xl mx-auto pointer-events-auto flex flex-col items-center">
+            <div class="text-center mb-10 lg:mb-16 reveal w-full">
+                <h2 class="text-4xl sm:text-5xl lg:text-7xl font-black text-slate-900 tracking-tighter uppercase heading-serif">We Specialize In</h2>
+                <p class="text-slate-900 mt-3 lg:mt-4 font-extrabold uppercase tracking-[0.2em] text-[8px] sm:text-[10px] lg:text-xs">Premium Healthcare Acquisition</p>
+            </div>
+            
+            <!-- Specialty 1: Dental -->
+            <div class="flex flex-row gap-3 sm:gap-6 lg:gap-12 items-center w-full max-w-[85%] lg:max-w-full mb-16">
+                <div class="w-1/2 reveal">
+                    <div class="reflection-container glass-light p-1.5 sm:p-2 lg:p-4 rounded-[1.5rem] lg:rounded-[2.5rem] w-full">
+                        <img src="https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&q=80&w=1200" alt="Dental Clinic" class="w-full aspect-square lg:aspect-auto lg:h-[400px] lg:h-[500px] object-cover rounded-[1rem] lg:rounded-[1.5rem] grayscale-[20%] hover:grayscale-0 transition-all duration-500">
+                    </div>
+                </div>
+                <div class="w-1/2 reveal" style="transition-delay: 150ms">
+                    <div class="inline-flex items-center gap-1.5 lg:gap-2 mb-1.5 sm:mb-2 lg:mb-4">
+                        <div class="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <i data-lucide="smile" class="text-emerald-600 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 stroke-[3]"></i>
+                        </div>
+                        <span class="text-[5px] sm:text-[8px] lg:text-xs font-black uppercase tracking-widest text-emerald-600">Speciality 1</span>
+                    </div>
+                    <h2 class="text-[10px] sm:text-[18px] lg:text-3xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter heading-serif leading-[1.1] mb-2 sm:mb-4 lg:mb-6">Cosmetic Dental <br>and Implants</h2>
+                    <div class="glass-light lg:!bg-transparent lg:!border-none lg:!shadow-none lg:!backdrop-filter-none p-3 rounded-2xl lg:p-0 mb-3 sm:mb-6 lg:mb-8">
+                        <p class="text-slate-700 text-[5px] sm:text-[10px] lg:text-base font-bold leading-relaxed">
+                            General dentistry does not scale. We focus entirely on high value procedures Invisalign Full Mouth Restorations Veneers and Implants. We build funnels that filter out tire kickers and exclusively book high intent patients ready to invest in their smile.
+                        </p>
+                    </div>
+                    <div class="flex flex-row gap-1.5 sm:gap-3 lg:gap-4">
+                        <div class="glass-light p-1.5 sm:p-3 lg:p-5 rounded-[0.75rem] lg:rounded-2xl flex flex-col gap-1 sm:gap-1.5 lg:gap-2 w-1/2">
+                            <i data-lucide="filter" class="w-2.5 h-2.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-emerald-500 stroke-[2.5]"></i>
+                            <h4 class="font-black text-slate-900 text-[4px] sm:text-[7px] lg:text-sm uppercase leading-tight">Lead Qual</h4>
+                            <p class="text-[3.5px] sm:text-[6px] lg:text-xs text-slate-600 font-bold leading-tight">Multi step funnels pre qualify patient intent and finances.</p>
+                        </div>
+                        <div class="glass-light p-1.5 sm:p-3 lg:p-5 rounded-[0.75rem] lg:rounded-2xl flex flex-col gap-1 sm:gap-1.5 lg:gap-2 w-1/2">
+                            <i data-lucide="trending-up" class="w-2.5 h-2.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-emerald-500 stroke-[2.5]"></i>
+                            <h4 class="font-black text-slate-900 text-[4px] sm:text-[7px] lg:text-sm uppercase leading-tight">High Ticket ROAS</h4>
+                            <p class="text-[3.5px] sm:text-[6px] lg:text-xs text-slate-600 font-bold leading-tight">Algorithms optimize for $5k+ case values over volume.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Specialty 2: Aesthetics -->
+            <div class="flex flex-row gap-3 sm:gap-6 lg:gap-12 items-center w-full max-w-[85%] lg:max-w-full">
+                <div class="w-1/2 reveal" style="transition-delay: 150ms">
+                    <div class="inline-flex items-center gap-1.5 lg:gap-2 mb-1.5 sm:mb-2 lg:mb-4">
+                        <div class="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                            <i data-lucide="sparkles" class="text-slate-900 w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 stroke-[3]"></i>
+                        </div>
+                        <span class="text-[5px] sm:text-[8px] lg:text-xs font-black uppercase tracking-widest text-slate-900">Speciality 2</span>
+                    </div>
+                    <h2 class="text-[10px] sm:text-[18px] lg:text-3xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter heading-serif leading-[1.1] mb-2 sm:mb-4 lg:mb-6">Medical Aesthetics <br>and Med Spas</h2>
+                    <div class="glass-light lg:!bg-transparent lg:!border-none lg:!shadow-none lg:!backdrop-filter-none p-3 rounded-2xl lg:p-0 mb-3 sm:mb-6 lg:mb-8">
+                        <p class="text-slate-700 text-[5px] sm:text-[10px] lg:text-base font-bold leading-relaxed">
+                            The Med Spa space is saturated with generic marketing. We elevate your brand positioning to command premium pricing for Botox Fillers Laser and Body Contouring. Our systems maximize patient lifetime value LTV through automated retention and membership conversions.
+                        </p>
+                    </div>
+                    <div class="flex flex-row gap-1.5 sm:gap-3 lg:gap-4">
+                        <div class="glass-light p-1.5 sm:p-3 lg:p-5 rounded-[0.75rem] lg:rounded-2xl flex flex-col gap-1 sm:gap-1.5 lg:gap-2 w-1/2">
+                            <i data-lucide="repeat" class="w-2.5 h-2.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-slate-900 stroke-[2.5]"></i>
+                            <h4 class="font-black text-slate-900 text-[4px] sm:text-[7px] lg:text-sm uppercase leading-tight">LTV Max</h4>
+                            <p class="text-[3.5px] sm:text-[6px] lg:text-xs text-slate-600 font-bold leading-tight">Automated nurturing systems turn one time Botox patients into members.</p>
+                        </div>
+                        <div class="glass-light p-1.5 sm:p-3 lg:p-5 rounded-[0.75rem] lg:rounded-2xl flex flex-col gap-1 sm:gap-1.5 lg:gap-2 w-1/2">
+                            <i data-lucide="diamond" class="w-2.5 h-2.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-slate-900 stroke-[2.5]"></i>
+                            <h4 class="font-black text-slate-900 text-[4px] sm:text-[7px] lg:text-sm uppercase leading-tight">Brand Prestige</h4>
+                            <p class="text-[3.5px] sm:text-[6px] lg:text-xs text-slate-600 font-bold leading-tight">Visual positioning and copy attracts a high ticket demographic.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-1/2 reveal">
+                    <div class="reflection-container glass-light p-1.5 sm:p-2 lg:p-4 rounded-[1.5rem] lg:rounded-[2.5rem] w-full">
+                        <img src="https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&q=80&w=1200" alt="Medical Aesthetics" class="w-full aspect-square lg:aspect-auto lg:h-[400px] lg:h-[500px] object-cover rounded-[1rem] lg:rounded-[1.5rem] grayscale-[20%] hover:grayscale-0 transition-all duration-500" style="object-position: center 30%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= CLINIC GROWTH METRICS ======================= -->
+    <!-- Clinic Growth Metrics -->
+    <section class="py-16 px-4 lg:px-16 md:px-12 bg-transparent anchor-section">
+        <div class="max-w-7xl mx-auto pointer-events-auto">
+            <h2 class="text-3xl lg:text-5xl font-black mb-12 leading-tight text-slate-900 tracking-tighter uppercase text-center reveal heading-serif">Clinic Growth Metrics</h2>
+            <div class="grid lg:grid-cols-3 gap-8 w-full max-w-[65%] sm:max-w-[75%] md:max-w-[80%] lg:max-w-full mx-auto">
+                <div class="reflection-container glass-light p-6 lg:p-8 rounded-3xl reveal flex flex-col items-center text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500 mb-6 flex items-center justify-center text-white shadow-lg">
+                        <i data-lucide="users" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-4xl font-black text-slate-900 mb-2">90 Days</h3>
+                    <p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Consultation Growth Focus</p>
+                    <p class="text-[10px] font-bold text-slate-600 leading-relaxed">A focused plan designed to bring more qualified consultation requests into your clinic.</p>
+                </div>
+                <div class="reflection-container glass-light p-6 lg:p-8 rounded-3xl reveal flex flex-col items-center text-center" style="transition-delay: 150ms">
+                    <div class="w-16 h-16 rounded-2xl bg-black mb-6 flex items-center justify-center text-white shadow-lg">
+                        <i data-lucide="dollar-sign" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-4xl font-black text-slate-900 mb-2">Higher LTV</h3>
+                    <p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Patient Value Potential</p>
+                    <p class="text-[10px] font-bold text-slate-600 leading-relaxed">We focus on high-value procedures and patient journeys that can grow lifetime value over time.</p>
+                </div>
+                <div class="reflection-container glass-light p-6 lg:p-8 rounded-3xl reveal flex flex-col items-center text-center" style="transition-delay: 300ms">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-50 mb-6 flex items-center justify-center text-emerald-600 shadow-inner">
+                        <i data-lucide="clock" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-4xl font-black text-slate-900 mb-2">60%</h3>
+                    <p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Shorter Sales Cycles</p>
+                    <p class="text-[10px] font-bold text-slate-600 leading-relaxed">Pre educated leads convert faster when arriving at your reception.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= ENGINEERS & SCROLLER ======================= -->
+    <!-- Team Section -->
+    <section id="team" class="pt-10 pb-10 lg:py-16 px-6 lg:px-16 md:px-12 bg-transparent anchor-section relative">
+        <div class="max-w-7xl md:max-w-4xl lg:max-w-7xl mx-auto relative z-10 pointer-events-auto">
+            <div class="flex flex-col lg:flex-row justify-between items-center lg:items-end mb-10 lg:mb-20 reveal">
+                <div class="text-center lg:text-left">
+                    <h2 class="text-3xl lg:text-6xl font-black text-slate-900 tracking-tighter uppercase heading-serif">Our Growth Engineers</h2>
+                    <p class="text-slate-900 mt-4 font-extrabold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Architects of Digital Dominance</p>
+                </div>
+            </div>
+            <div class="relative px-2 lg:py-10 md:w-[80%] lg:w-full mx-auto">
+                <button id="team-prev" class="scroll-control-btn absolute -left-4 lg:left-0 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full flex items-center justify-center text-slate-900 hover:text-emerald-500 shadow-xl">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                </button>
+                <button id="team-next" class="scroll-control-btn absolute -right-4 lg:right-0 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full flex items-center justify-center text-slate-900 hover:text-emerald-500 shadow-xl">
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+                <div id="team-scroller" class="flex lg:grid lg:grid-cols-5 gap-4 md:gap-5 lg:gap-8 overflow-x-auto lg:overflow-visible overflow-y-hidden no-scrollbar snap-x snap-mandatory pb-4 lg:pb-0 px-4 md:px-8 lg:px-0">
+                    <div class="team-card min-w-[31%] lg:min-w-0 group reveal snap-center flex flex-col h-auto transition-all duration-300 lg:hover:scale-110 lg:hover:z-50 cursor-pointer">
+                        <div class="relative overflow-hidden rounded-[0.75rem] lg:rounded-[2.5rem] mb-2 aspect-[4/5] team-image-container w-full border border-white/10 bg-slate-200">
+                            <img src="https://i.imgur.com/e0oZr4b.jpeg" class="w-full h-full object-cover team-img">
+                        </div>
+                        <div class="glass-light p-2.5 md:p-4 lg:p-5 rounded-xl lg:rounded-2xl flex-grow text-center overflow-hidden">
+                            <h3 class="text-[9px] sm:text-xs md:text-sm lg:text-xl font-black text-slate-900 uppercase heading-serif truncate px-1">Lex</h3>
+                            <p class="text-emerald-600 text-[5px] sm:text-[7px] md:text-[8px] lg:text-[11px] font-black uppercase tracking-widest mt-1 mb-2">Principal Architect</p>
+                            <p class="text-slate-950 text-[6px] sm:text-[8px] md:text-[10px] lg:text-[12px] leading-tight font-extrabold opacity-90">Lex leads the architectural design of high conversion predictive funnel logic.</p>
+                        </div>
+                    </div>
+                    <div class="team-card min-w-[31%] lg:min-w-0 group reveal snap-center flex flex-col h-auto transition-all duration-300 lg:hover:scale-110 lg:hover:z-50 cursor-pointer" style="transition-delay: 100ms">
+                        <div class="relative overflow-hidden rounded-[0.75rem] lg:rounded-[2.5rem] mb-2 aspect-[4/5] team-image-container w-full border border-white/10 bg-slate-200">
+                            <img src="https://i.imgur.com/xpudvhe.jpeg" class="w-full h-full object-cover team-img">
+                        </div>
+                        <div class="glass-light p-2.5 md:p-4 lg:p-5 rounded-xl lg:rounded-2xl flex-grow text-center overflow-hidden">
+                            <h3 class="text-[9px] sm:text-xs md:text-sm lg:text-xl font-black text-slate-900 uppercase heading-serif truncate px-1">Harry Singh</h3>
+                            <p class="text-emerald-600 text-[5px] sm:text-[7px] md:text-[8px] lg:text-[11px] font-black uppercase tracking-widest mt-1 mb-2">Growth Specialist</p>
+                            <p class="text-slate-950 text-[6px] sm:text-[8px] md:text-[10px] lg:text-[12px] leading-tight font-extrabold opacity-90">Harry manages strategic capital allocation for aggressive ROAS scaling protocols.</p>
+                        </div>
+                    </div>
+                    <div class="team-card min-w-[31%] lg:min-w-0 group reveal snap-center flex flex-col h-auto transition-all duration-300 lg:hover:scale-110 lg:hover:z-50 cursor-pointer" style="transition-delay: 200ms">
+                        <div class="relative overflow-hidden rounded-[0.75rem] lg:rounded-[2.5rem] mb-2 aspect-[4/5] team-image-container w-full border border-white/10 bg-slate-200">
+                            <img src="https://i.imgur.com/2uJIVMQ.png" class="w-full h-full object-cover team-img">
+                        </div>
+                        <div class="glass-light p-2.5 md:p-4 lg:p-5 rounded-xl lg:rounded-2xl flex-grow text-center overflow-hidden">
+                            <h3 class="text-[9px] sm:text-xs md:text-sm lg:text-xl font-black text-slate-900 uppercase heading-serif truncate px-1">Ganga</h3>
+                            <p class="text-emerald-600 text-[5px] sm:text-[7px] md:text-[8px] lg:text-[11px] font-black uppercase tracking-widest mt-1 mb-2">Data Scientist</p>
+                            <p class="text-slate-950 text-[6px] sm:text-[8px] md:text-[10px] lg:text-[12px] leading-tight font-extrabold opacity-90">Ganga decodes complex behavioral metrics to optimize data driven profit margins.</p>
+                        </div>
+                    </div>
+                    <div class="team-card min-w-[31%] lg:min-w-0 group reveal snap-center flex flex-col h-auto transition-all duration-300 lg:hover:scale-110 lg:hover:z-50 cursor-pointer" style="transition-delay: 300ms">
+                        <div class="relative overflow-hidden rounded-[0.75rem] lg:rounded-[2.5rem] mb-2 aspect-[4/5] team-image-container w-full border border-white/10 bg-slate-200">
+                            <img src="https://i.imgur.com/YcDfotc.jpeg" class="w-full h-full object-cover team-img">
+                        </div>
+                        <div class="glass-light p-2.5 md:p-4 lg:p-5 rounded-xl lg:rounded-2xl flex-grow text-center overflow-hidden">
+                            <h3 class="text-[9px] sm:text-xs md:text-sm lg:text-xl font-black text-slate-900 uppercase heading-serif truncate px-1">Desmond</h3>
+                            <p class="text-emerald-600 text-[5px] sm:text-[7px] md:text-[8px] lg:text-[11px] font-black uppercase tracking-widest mt-1 mb-2">Account Lead</p>
+                            <p class="text-slate-950 text-[6px] sm:text-[8px] md:text-[10px] lg:text-[12px] leading-tight font-extrabold opacity-90">Desmond aligns market dominating campaigns with strict business KPIs.</p>
+                        </div>
+                    </div>
+                    <div class="team-card min-w-[31%] lg:min-w-0 group reveal snap-center flex flex-col h-auto transition-all duration-300 lg:hover:scale-110 lg:hover:z-50 cursor-pointer" style="transition-delay: 400ms">
+                        <div class="relative overflow-hidden rounded-[0.75rem] lg:rounded-[2.5rem] mb-2 aspect-[4/5] team-image-container w-full border border-white/10 bg-slate-200">
+                            <img src="https://i.imgur.com/cpR7o71.png" class="w-full h-full object-cover team-img">
+                        </div>
+                        <div class="glass-light p-2.5 md:p-4 lg:p-5 rounded-xl lg:rounded-2xl flex-grow text-center overflow-hidden">
+                            <h3 class="text-[9px] sm:text-xs md:text-sm lg:text-xl font-black text-slate-900 uppercase heading-serif truncate px-1">Yashan</h3>
+                            <p class="text-emerald-600 text-[5px] sm:text-[7px] md:text-[8px] lg:text-[11px] font-black uppercase tracking-widest mt-1 mb-2">Creative Lead</p>
+                            <p class="text-slate-950 text-[6px] sm:text-[8px] md:text-[10px] lg:text-[12px] leading-tight font-extrabold opacity-90">Yashan directs high performance visual assets and psychological copy for viral resonance.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= LOCAL GEOGRAPHIC MAP ======================= -->
+    <!-- Local Impact Map -->
+    <section id="local-impact" class="pt-6 pb-6 lg:pt-12 lg:pb-12 px-6 md:px-12 lg:px-16 bg-transparent anchor-section">
+        <div class="max-w-4xl mx-auto md:max-w-3xl lg:max-w-4xl pointer-events-auto">
+            <div class="block lg:hidden mb-8 text-center reveal">
+                <h2 class="text-3xl md:text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none heading-serif">
+                    Data Driven Growth, <br>
+                    <span class="text-emerald-500">Locally Engineered.</span>
+                </h2>
+            </div>
+            <div class="glass-light p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] overflow-hidden reveal md:mx-6 lg:mx-0">
+                <div class="grid grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center h-full">
+                    <div class="relative aspect-square w-full bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden shadow-inner">
+                        <iframe class="w-full h-full grayscale opacity-80" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d179219.11210137785!2d-75.8973715!3d45.4247206!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4cce05b25f5113af%3A0x8a6a51e13482ee5!2sOttawa%2C%20ON!5e0!3m2!1sen!2sca!4v1707696000000!5m2!1sen!2sca" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-white/20 to-transparent"></div>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <h2 class="hidden lg:block text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-5 heading-serif">
+                            Data Driven Growth, <br>
+                            <span class="text-emerald-500">Locally Engineered.</span>
+                        </h2>
+                        <p class="text-[7px] md:text-[10px] lg:text-base text-slate-900 font-bold leading-tight lg:leading-relaxed mb-4 lg:mb-6">
+                            Darker zones represent higher lead concentration from paid campaigns across Ottawa. We focus on geo targeted strategy.
+                        </p>
+                        <ul class="space-y-1.5 md:space-y-2 lg:space-y-3 mb-5 lg:mb-8">
+                            <li class="flex items-center gap-1.5 lg:gap-3 text-slate-900">
+                                <i data-lucide="crosshair" class="w-2.5 h-2.5 lg:w-4 lg:h-4 text-emerald-500 stroke-[2.5]"></i>
+                                <span class="text-[6px] md:text-[9px] lg:text-sm font-black uppercase tracking-tight">Hyper local targeting precision</span>
+                            </li>
+                            <li class="flex items-center gap-1.5 lg:gap-3 text-slate-900">
+                                <i data-lucide="activity" class="w-2.5 h-2.5 lg:w-4 lg:h-4 text-emerald-500 stroke-[2.5]"></i>
+                                <span class="text-[6px] md:text-[9px] lg:text-sm font-black uppercase tracking-tight">Real time tracking</span>
+                            </li>
+                            <li class="flex items-center gap-1.5 lg:gap-3 text-slate-900">
+                                <i data-lucide="globe" class="w-2.5 h-2.5 lg:w-4 lg:h-4 text-emerald-500 stroke-[2.5]"></i>
+                                <span class="text-[6px] md:text-[9px] lg:text-sm font-black uppercase tracking-tight">Scalable global reach</span>
+                            </li>
+                        </ul>
+                        <div class="inline-flex items-center gap-1.5 lg:gap-2 px-3 lg:px-5 py-2 lg:py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full shadow-lg self-start">
+                            <i data-lucide="map-pin" class="w-3 h-3 md:w-4 md:h-4 lg:w-5 lg:h-5 stroke-[2.5]"></i>
+                            <span class="text-[5px] md:text-[8px] lg:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Ottawa based, serving globally.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= PRIVACY POLICY ======================= -->
+    <section id="privacy" class="pt-2 pb-12 lg:pt-3 lg:pb-16 px-6 md:px-12 bg-transparent anchor-section">
+        <div class="max-w-5xl mx-auto pointer-events-auto">
+            <details class="reflection-container glass-light rounded-[2rem] sm:rounded-[3rem] reveal group">
+                <summary class="privacy-policy-toggle flex items-center justify-between gap-5 p-7 sm:p-10 lg:p-12">
+                    <span class="text-left">
+                        <span class="block text-emerald-700 text-[10px] font-black uppercase tracking-[0.28em] mb-3">Your information, handled responsibly</span>
+                        <span class="block text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter heading-serif">Privacy Policy</span>
+                        <span class="block mt-3 text-slate-600 font-bold">Effective and last updated: July 15, 2026</span>
+                    </span>
+                    <span class="privacy-policy-arrow flex-none w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center text-2xl sm:text-3xl shadow-lg" aria-hidden="true">⌄</span>
+                </summary>
+                <article class="privacy-copy px-7 pb-8 sm:px-10 sm:pb-11 lg:px-14 lg:pb-14">
+                <p>This policy explains how <strong>CliniqueGrowth.ca</strong> ("CliniqueGrowth.ca," "we," "us," or "our") collects, uses, discloses, and protects personal information through our website and our social media marketing, advertising, lead-generation, analytics, creative, and consulting services.</p>
+
+                <h2>1. Scope and accountability</h2>
+                <p>This policy applies to website visitors, prospective and current clients, business contacts, and individuals whose information we process in connection with client campaigns. It does not replace a client's own privacy notice or a separate service, data-processing, or campaign agreement.</p>
+                <p>CliniqueGrowth.ca is responsible for personal information under our control. Our Privacy Officer can be reached using the contact information in Section 14.</p>
+
+                <h2>2. Information we collect</h2>
+                <ul>
+                    <li><strong>Contact and business information:</strong> name, email address, phone number, company or clinic name, role, website, social profiles, and inquiry details.</li>
+                    <li><strong>Client and service information:</strong> objectives, budgets, contracts, billing records, brand assets, campaign instructions, account access details, communications, and support history.</li>
+                    <li><strong>Campaign and lead information:</strong> ad interactions, form submissions, referral source, appointment or conversion status, audience attributes, campaign identifiers, and reporting metrics supplied by clients or advertising platforms.</li>
+                    <li><strong>Website and device information:</strong> IP address, browser and device type, pages viewed, referring pages, approximate location, timestamps, cookie identifiers, and similar technical data.</li>
+                    <li><strong>Content and feedback:</strong> reviews, testimonials, survey responses, photos, video, audio, logos, before-and-after materials, and other content submitted or specifically authorized for use.</li>
+                </ul>
+                <p>We ask clients not to provide medical records, treatment details, payment-card data, government identifiers, or other sensitive information unless it is necessary, lawfully collected, and covered by appropriate written safeguards.</p>
+
+                <h2>3. How we collect information</h2>
+                <p>We collect information directly from you, from your organization, through website forms and communications, from client-authorized advertising and analytics accounts, from service providers, and from lawful public or business sources. When we run campaigns for a client, the client is generally responsible for the information it chooses to collect and the instructions it gives us.</p>
+
+                <h2>4. How we use information</h2>
+                <ul>
+                    <li>Respond to inquiries, provide audits, proposals, and requested services, and manage client relationships.</li>
+                    <li>Create, launch, optimize, and report on advertising, social media, funnel, website, and lead-generation campaigns.</li>
+                    <li>Measure campaign performance, attribution, conversion quality, and return on advertising spend.</li>
+                    <li>Secure our systems, prevent fraud or misuse, troubleshoot, maintain records, and enforce agreements.</li>
+                    <li>Improve our services, develop aggregated insights, and conduct internal forecasting and quality assurance.</li>
+                    <li>Send service messages and, with consent or another lawful basis where permitted, marketing communications.</li>
+                    <li>Comply with legal obligations and protect our rights, clients, users, and the public.</li>
+                </ul>
+                <p>We limit collection, use, and disclosure to purposes that a reasonable person would consider appropriate in the circumstances.</p>
+
+                <h2>5. Client campaigns and consumer information</h2>
+                <p>When we process personal information for a client, we act on that client's documented instructions and use the information to deliver the agreed services. The client remains responsible for its notices, consent language, legal basis, offer terms, and the accuracy and lawfulness of the information it provides to us.</p>
+                <p>Clients must not ask us to use unlawfully obtained lists, scraped personal information, misleading forms, or sensitive patient information without an appropriate legal basis and written safeguards. We may reject, pause, or remove a campaign that creates an unreasonable privacy, safety, or compliance risk.</p>
+
+                <h2>6. Testimonials, case studies, and campaign results</h2>
+                <p>We may create case studies and promotional materials showing our work, but public use of a client's name, logo, identifiable testimonial, images, videos, or identifiable campaign results requires documented authorization from the client or a written agreement that clearly grants that permission.</p>
+                <ul>
+                    <li>The authorization may define the approved content, platforms, duration, attribution, and any review process.</li>
+                    <li>Clients are responsible for obtaining any necessary permission from patients, customers, staff, creators, or other people appearing in supplied content.</li>
+                    <li>We may edit an approved testimonial for length or clarity without changing its meaning and will follow any agreed approval requirements.</li>
+                    <li>A person or client may withdraw an optional promotional consent prospectively, subject to applicable law and existing contractual commitments.</li>
+                    <li>We may use aggregated or reasonably de-identified performance information that does not identify a person or client, provided that doing so is allowed by our contracts and applicable law.</li>
+                </ul>
+                <p><strong>Results disclaimer:</strong> Past campaign results, testimonials, and case studies are illustrative and do not guarantee future outcomes.</p>
+
+                <h2>7. Cookies, analytics, and advertising technology</h2>
+                <p>Our website and campaign pages may use cookies, pixels, conversion APIs, local storage, and similar technologies supplied by us or partners such as Google, Meta, TikTok, and analytics or customer-relationship platforms. These tools help operate pages, remember preferences, measure traffic and conversions, prevent abuse, and improve advertising.</p>
+                <p>You can limit cookies through your browser or device settings. Blocking some technologies may affect functionality or measurement. Where required, we will request consent before using non-essential tracking technologies.</p>
+
+                <h2>8. Marketing communications</h2>
+                <p>We send commercial electronic messages only when we have the required consent or another lawful basis. Our messages will identify the sender and provide a working way to unsubscribe where required. You may opt out at any time; service or transactional messages may still be sent when necessary to manage an active relationship.</p>
+
+                <h2>9. How we disclose information</h2>
+                <p>We do not sell personal information. We may disclose information to authorized team members and contractors who need it to provide services; advertising networks, analytics providers, hosting services, email and CRM platforms, payment and accounting providers, communications tools, and other vendors acting for us or a client; professional advisers, insurers, auditors, or parties to a business transaction under appropriate confidentiality protections; and government, regulators, courts, or other parties when required by law or reasonably necessary to protect rights, safety, and security.</p>
+                <p>Service providers may process information in Canada, the United States, or other countries, where it may be subject to local laws and lawful access by authorities.</p>
+
+                <h2>10. Retention and security</h2>
+                <p>We retain personal information only as long as reasonably necessary for the identified purposes, contractual commitments, dispute resolution, and legal or accounting requirements. We then delete, anonymize, or securely dispose of it.</p>
+                <p>We use administrative, technical, and physical safeguards appropriate to the sensitivity of the information, including access controls and vendor oversight. No internet transmission or storage system is completely secure, so we cannot guarantee absolute security.</p>
+
+                <h2>11. Your choices and privacy rights</h2>
+                <p>Subject to applicable law and limited exceptions, you may ask to access or correct your personal information, withdraw consent, object to or limit certain uses, request deletion, or make a privacy complaint. We may need to verify your identity and may retain information where legally or contractually required.</p>
+                <p>If we process your information solely for a client, we may direct your request to that client or assist the client in responding.</p>
+
+                <h2>12. Children's privacy</h2>
+                <p>Our website and services are intended for businesses and adults. We do not knowingly collect personal information directly from children under 13 through this website. Campaigns directed to minors require appropriate client instructions, notices, consent, and safeguards.</p>
+
+                <h2>13. Changes to this policy</h2>
+                <p>We may update this policy as our services, vendors, or legal obligations change. We will post the revised version here and update the effective date. If a change materially affects how we use previously collected information, we will provide additional notice or seek fresh consent where required.</p>
+
+                <h2>14. Contact our Privacy Officer</h2>
+                <p>Questions, requests, or complaints can be sent to:</p>
+                <p><strong>Privacy Officer, CliniqueGrowth.ca</strong><br>Ottawa, Ontario, Canada<br><a class="text-emerald-700 underline underline-offset-4" href="mailto:Harry@cliniquegrowth.ca?subject=Privacy%20Request%20-%20CliniqueGrowth.ca">Harry@cliniquegrowth.ca</a></p>
+                <p>We will review and respond within the period required by applicable law.</p>
+                </article>
+            </details>
+        </div>
+    </section>
+
+    <!-- ======================= FOOTER & STATE MANAGEMENT ======================= -->
+    <!-- Contact / CTA Footer -->
+    <section id="contact" class="pt-10 pb-2 lg:pt-32 lg:pb-3 px-6 md:px-12 bg-transparent anchor-section">
+        <div class="max-w-4xl mx-auto md:max-w-3xl lg:max-w-4xl text-center pointer-events-auto">
+            <h2 class="text-4xl sm:text-6xl lg:text-8xl font-black mb-12 text-slate-900 tracking-tighter uppercase text-center heading-serif">Ready to Start?</h2>
+            <div class="reflection-container glass-light p-8 sm:p-12 rounded-[2rem] sm:rounded-[3rem] mb-12 md:mx-6 lg:mx-0">
+                <p class="text-emerald-900 font-black text-base lg:text-lg mb-8 text-center">We take on 3 new clients per month for absolute quality.</p>
+                <div class="flex flex-col lg:flex-row justify-center gap-4">
+                    <input type="email" id="footer-email-input" placeholder="Email Address" class="bg-white/40 backdrop-blur-md border-2 border-emerald-500 px-6 sm:px-8 py-4 rounded-2xl w-full lg:w-80 outline-none text-sm font-bold placeholder:text-slate-400 text-slate-900 shadow-sm">
+                    <button onclick="openAuditModal()" class="bg-emerald-600 text-white px-8 lg:px-10 py-4 rounded-2xl font-black text-sm lg:text-base hover:bg-emerald-700 transition-all btn-pop shadow-lg flex items-center justify-center">Claim Your Audit</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="px-6 md:px-12 pb-12 bg-transparent">
+        <p class="text-slate-300 text-[8px] sm:text-[10px] font-black tracking-[0.5em] uppercase text-center">
+            &copy; 2026 CliniqueGrowth.ca. No Comfort. Just Growth.
+        </p>
+    </footer>
+
+    <!-- ======================= SCRIPTS ======================= -->
+    <script>
+    // Keep the privacy policy after the main call to action and before the footer.
+    const privacySection = document.getElementById('privacy');
+    const contactSection = document.getElementById('contact');
+    if (privacySection && contactSection) contactSection.after(privacySection);
+
+        const modal = document.getElementById('audit-modal');
+        function openAuditModal() {
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.querySelector('.reveal').classList.add('active'); }, 10);
+        }
+        function closeAuditModal() { modal.classList.add('hidden'); }
+        
+        function redirectToEmail(service, platform) {
+            const recipient = "Harry@cliniquegrowth.ca";
+            const subject = encodeURIComponent("CliniqueGrowth.ca Practice Growth Audit: [Practice Name]");
+            
+            const bodyContent = `1. Which clinical procedures generate the highest revenue for your practice?\n2. What is your estimated monthly marketing budget?\n3. What is your primary growth goal for the next 90 days?\n4. What is your clinic website URL?\n\n[Additional notes here]`;
+            const body = encodeURIComponent(bodyContent);
+            
+            let url = "";
+            if (platform === 'web') {
+                if (service === 'gmail') { url = `https://mail.google.com/mail/?view=cm&fs=1&to=${recipient}&su=${subject}&body=${body}`; }
+                else if (service === 'outlook') { url = `https://outlook.office.com/mail/deeplink/compose?to=${recipient}&subject=${subject}&body=${body}`; }
+            } else if (platform === 'app') { url = `mailto:${recipient}?subject=${subject}&body=${body}`; }
+            window.open(url, '_blank');
+            closeAuditModal();
+        }
+
+        window.addEventListener('load', () => {
+            if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+            const loader = document.getElementById('loader');
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 600);
+            initParticles();
+            initPlanets();
+        });
+
+        const initParticles = () => {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+            class Particle {
+                constructor() { this.init(); }
+                init() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = (Math.random() - 0.5) * 0.4;
+                    this.vy = (Math.random() - 0.5) * 0.4;
+                    this.size = Math.random() * 3 + 1.5; 
+                    this.color = Math.random() > 0.4 ? '#10b981' : '#0f172a'; 
+                }
+                update() {
+                    this.x += this.vx; this.y += this.vy;
+                    if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0;
+                    if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0;
+                }
+                draw() {
+                    ctx.globalAlpha = 0.5; ctx.fillStyle = this.color; ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+            const createParticles = () => {
+                particles = [];
+                const count = Math.floor(window.innerWidth * window.innerHeight / 12000); 
+                for (let i = 0; i < count; i++) { particles.push(new Particle()); }
+            };
+            const animate = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => { p.update(); p.draw(); });
+                requestAnimationFrame(animate);
+            };
+            window.addEventListener('resize', () => { resize(); createParticles(); });
+            resize(); createParticles(); animate();
+        };
+
+        const initPlanets = () => {
+            const planets = document.querySelectorAll('.planet-wrapper');
+            planets.forEach(planet => {
+                let isDragging = false, startX, startY, currentLeft = 0, currentTop = 0, vx = 0, vy = 0, lastX = 0, lastY = 0, animationFrameId;
+                const startDrag = (e) => {
+                    isDragging = true; cancelAnimationFrame(animationFrameId);
+                    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                    startX = clientX; startY = clientY;
+                    const rect = planet.getBoundingClientRect();
+                    currentLeft = rect.left; currentTop = rect.top;
+                    planet.style.left = `${currentLeft}px`; planet.style.top = `${currentTop}px`;
+                    planet.style.right = 'auto'; planet.style.bottom = 'auto';
+                    lastX = clientX; lastY = clientY; vx = 0; vy = 0;
+                    planet.style.cursor = 'grabbing';
+                    if(e.cancelable) e.preventDefault(); 
+                };
+                const drag = (e) => {
+                    if (!isDragging) return;
+                    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                    planet.style.left = `${currentLeft + (clientX - startX)}px`;
+                    planet.style.top = `${currentTop + (clientY - startY)}px`;
+                    vx = clientX - lastX; vy = clientY - lastY;
+                    lastX = clientX; lastY = clientY;
+                };
+                const stopDrag = () => {
+                    if (!isDragging) return; isDragging = false; planet.style.cursor = 'grab';
+                    let rect = planet.getBoundingClientRect(), animLeft = rect.left, animTop = rect.top;
+                    const inertiaLoop = () => {
+                        vx *= 0.95; vy *= 0.95;
+                        if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) return;
+                        animLeft += vx; animTop += vy;
+                        planet.style.left = `${animLeft}px`; planet.style.top = `${animTop}px`;
+                        animationFrameId = requestAnimationFrame(inertiaLoop);
+                    };
+                    inertiaLoop();
+                };
+                planet.addEventListener('mousedown', startDrag);
+                planet.addEventListener('touchstart', startDrag, { passive: false });
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, { passive: false });
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+            });
+        };
+
+        const glow = document.getElementById('cursor-glow');
+        document.addEventListener('mousemove', (e) => {
+            if (window.innerWidth > 1024) { glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px'; }
+        });
+
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('active'); });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.reveal').forEach(r => revealObserver.observe(r));
+
+        const navObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id;
+                    document.querySelectorAll('.nav-link-btn').forEach(link => {
+                        if (link.dataset.section === id) {
+                            link.classList.add('nav-active');
+                        } else if (link.dataset.section) {
+                            link.classList.remove('nav-active');
+                        }
+                    });
+                }
+            });
+        }, { threshold: 0.3 });
+        document.querySelectorAll('.anchor-section').forEach(section => navObserver.observe(section));
+
+        const scroller = document.getElementById('team-scroller');
+        if (scroller) {
+            const scrollStep = () => scroller.offsetWidth * 0.75;
+            document.getElementById('team-prev').onclick = () => scroller.scrollBy({ left: -scrollStep(), behavior: 'smooth' });
+            document.getElementById('team-next').onclick = () => scroller.scrollBy({ left: scrollStep(), behavior: 'smooth' });
+        }
+    </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"17f962c78d354f6fb75ef808bcafd9b8","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

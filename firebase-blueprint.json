@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "VideoUpload": {
+      "title": "VideoUpload",
+      "description": "Video upload record containing storage URL, metadata, and owner user ID.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title or filename of the uploaded video",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "Public download URL from cloud storage",
+          "maxLength": 1000
+        },
+        "storagePath": {
+          "type": "string",
+          "description": "Path in cloud storage bucket",
+          "maxLength": 500
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the user who uploaded the video",
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of the uploader",
+          "maxLength": 200
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the uploader",
+          "maxLength": 150
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Size of the video in bytes"
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME type of the video (MP4, MOV, WebM)",
+          "enum": ["video/mp4", "video/quicktime", "video/webm"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when video was uploaded"
+        }
+      },
+      "required": ["title", "videoUrl", "storagePath", "userId", "fileSize", "fileType", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/videos/{videoId}": {
+      "schema": "VideoUpload",
+      "description": "Collection of uploaded client and portfolio videos"
+    }
+  }
+}
